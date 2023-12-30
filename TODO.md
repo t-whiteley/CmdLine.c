@@ -1,0 +1,5 @@
+- [x] Load dir from csv, append to csv
+- [x] stdin fucntionality for CLI
+- [ ] implement h (help) command
+- [ ] Allow files, not only dirs
+- [ ] Add encryption
