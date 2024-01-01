@@ -27,7 +27,6 @@ typedef struct Dir {
 } Dir;
 
 
-
 // terminal commands
 Dir* mk_drive();
 Dir* mk_dir(Dir* parent_dir, char* dir_name);
@@ -46,21 +45,12 @@ Dir* load_save(char* file_name);
 void local_save(Dir* td, char* file_name);
 
 
-void help() {
-    printf("MANUAL:\n");
-    printf("\tp: print entire tree of directories\n");
-    printf("\tl: list subdirectories in a directory\n");
-    printf("\te: exit the terminal\n");
-    printf("\tc dir1/: change current directory to this sub-dir\n");
-    printf("\tm dir1: make new sub-dir in current directory named dir1\n");
-    printf("\tf dir1: make new file in current directory named dir1\n");
-}
-
-
 int main() {
-    // Dir* tdrive = mkdrive();
-    // Dir* curr_dir = tdrive;
+    // STARTING WITH NO SAVE
+    // Dir* tdrive = mk_drive();
+    // Dir* s1 = mk_dir(tdrive, "sub1");
     // local_save(tdrive, SAVE_NAME);
+    // Dir* curr_dir = tdrive;
 
     Dir* tdrive = load_save(SAVE_NAME);
     Dir* curr_dir = tdrive;
@@ -68,6 +58,7 @@ int main() {
     char c;
     char expr[MAX_LINE_SIZE];
     int loop = 1;
+
 
     printf("[Type 'h' for help]\n");
     while (loop) {
@@ -103,6 +94,7 @@ int main() {
                 fgets(expr, MAX_LINE_SIZE, stdin);
                 trim_whitespace(expr);
                 mk_file(curr_dir, expr);
+                local_save(tdrive, SAVE_NAME);
                 break;
             
             // EXIT PROGRAM
@@ -120,7 +112,7 @@ int main() {
         }
 
         // checks if it isnt a cmd that clears line anyways before clearing
-        if (c != 'c' && c != 'm' && c != 'f') {
+        if (c != 'c' && c != 'm' && c != 'f' && c != '\n') {
             while ((getchar()) != '\n');
         }
     }
@@ -200,10 +192,18 @@ void print_tree(Dir* d, int lvl) {
     printf("↳");
     printf("%s\n", d->name);
 
+    for (int j = 0; j < d->num_files; j++) {
+        for (int i = 0; i < lvl+1; i++) {
+            printf("   ");
+        }
+        printf("→");
+        printf("%s\n", d->files[j]->name);
+    }
+
     if (!(d->num_dirs)) return;
 
-    for (int i = 0; i < d->num_dirs; i++) {
-        print_tree(d->dirs[i], lvl + 1);
+    for (int k = 0; k < d->num_dirs; k++) {
+        print_tree(d->dirs[k], lvl + 1);
     }
 }
 
@@ -266,21 +266,39 @@ void trim_whitespace(char* s) {
     s[length] = '\0';
 }
 
+void help() {
+    printf("MANUAL:\n");
+    printf("\tp: print entire tree of directories\n");
+    printf("\tl: list subdirectories in a directory\n");
+    printf("\te: exit the terminal\n");
+    printf("\tc dir1/: change current directory to this sub-dir\n");
+    printf("\tm dir1: make new sub-dir in current directory named dir1\n");
+    printf("\tf dir1: make new file in current directory named dir1\n");
+}
+
 
 // saving and loading commands
 Dir* load_dir(FILE* file, Dir* parent_dir) {
     Dir* d = (Dir*)malloc(sizeof(Dir));
 
     fscanf(file, "%d", &(d->len_name));
-
     d->name = (char*) malloc(sizeof(char) * d->len_name);
     fscanf(file, "%s", d->name);
-
     d->parent = parent_dir;
-
     fscanf(file, "%d", &(d->num_dirs));
-    d->dirs = (Dir**)malloc(sizeof(Dir*) * d->num_dirs);
+    fscanf(file, "%d", &(d->num_files));
 
+    d->files = (File**) malloc(sizeof(File*) * d->num_files);
+    for (int i = 0; i < d->num_files; i++) {
+        File* f = (File*) malloc(sizeof(File));
+        fscanf(file, "%d", &(f->len_name));
+        f->name = (char*) malloc(sizeof(char) * f->len_name);
+        fscanf(file, "%s", f->name);
+        f->parent = d;
+        d->files[i] = f;
+    }
+
+    d->dirs = (Dir**)malloc(sizeof(Dir*) * d->num_dirs);
     for (int i = 0; i < d->num_dirs; i++) {
         d->dirs[i] = load_dir(file, d);
     }
@@ -299,6 +317,13 @@ void save_dir(Dir* d, FILE* file) {
     fprintf(file, "%d\n", d->len_name);
     fprintf(file, "%s\n", d->name);
     fprintf(file, "%d\n", d->num_dirs);
+    fprintf(file, "%d\n", d->num_files);
+    
+    for (int i = 0; i < d->num_files; i++) {
+        fprintf(file, "%d\n", d->files[i]->len_name);
+        fprintf(file, "%s\n", d->files[i]->name);
+    }
+
     for (int i = 0; i < d->num_dirs; i++) {
         save_dir(d->dirs[i], file);
     }
