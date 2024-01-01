@@ -12,6 +12,8 @@
 typedef struct File {
     int len_name;
     char* name;
+    int has_contents;
+    int len_contents;
     char* contents;
     struct Dir* parent;
 } File;
@@ -44,17 +46,29 @@ void help();
 Dir* load_save(char* file_name);
 void local_save(Dir* td, char* file_name);
 
+// working with files
+void view_contents(Dir* curr_dir, char* file_name);
+void edit_file(File* f);
+void edit_contents(Dir* curr_dir, char* file_name);
+
 
 int main() {
     // STARTING WITH NO SAVE
     // Dir* tdrive = mk_drive();
     // Dir* s1 = mk_dir(tdrive, "sub1");
+    // Dir* s2 = mk_dir(tdrive, "sub2");
+    // Dir* s3 = mk_dir(tdrive, "sub3");
+    // Dir* s4 = mk_dir(s1, "sub4");
+    // Dir* s5 = mk_dir(s1, "sub5");
+    // mk_file(s2, "hello.txt");
     // local_save(tdrive, SAVE_NAME);
     // Dir* curr_dir = tdrive;
 
     Dir* tdrive = load_save(SAVE_NAME);
     Dir* curr_dir = tdrive;
 
+
+    // loop related variables
     char c;
     char expr[MAX_LINE_SIZE];
     int loop = 1;
@@ -97,8 +111,22 @@ int main() {
                 local_save(tdrive, SAVE_NAME);
                 break;
             
-            // EXIT PROGRAM
+            // EDIT FILE
             case 'e':
+                fgets(expr, MAX_LINE_SIZE, stdin);
+                trim_whitespace(expr);
+                edit_contents(curr_dir, expr);
+                break;
+            
+            // VIEW FILE
+            case 'v':
+                fgets(expr, MAX_LINE_SIZE, stdin);
+                trim_whitespace(expr);
+                view_contents(curr_dir, expr);
+                break;
+            
+            // EXIT PROGRAM
+            case 'b':
                 loop = 0;
                 break;
             
@@ -112,7 +140,7 @@ int main() {
         }
 
         // checks if it isnt a cmd that clears line anyways before clearing
-        if (c != 'c' && c != 'm' && c != 'f' && c != '\n') {
+        if (c != 'c' && c != 'm' && c != 'f' && c != '\n' && c != 'e' && c != 'v') {
             while ((getchar()) != '\n');
         }
     }
@@ -163,6 +191,7 @@ void mk_file(Dir* parent_dir, char* file_name) {
     f->name = (char*) malloc(f->len_name * sizeof(char));
     strcpy(f->name, file_name);
     f->parent = parent_dir;
+    f->has_contents = 0;
     
     parent_dir->files = (File**) realloc(parent_dir->files, sizeof(File*) * parent_dir->num_files);
     parent_dir->files[parent_dir->num_files] = f;
@@ -197,6 +226,7 @@ void print_tree(Dir* d, int lvl) {
             printf("   ");
         }
         printf("→");
+        printf("%d, ", d->files[j]->has_contents);
         printf("%s\n", d->files[j]->name);
     }
 
@@ -270,10 +300,12 @@ void help() {
     printf("MANUAL:\n");
     printf("\tp: print entire tree of directories\n");
     printf("\tl: list subdirectories in a directory\n");
-    printf("\te: exit the terminal\n");
+    printf("\tb: break out of terminal\n");
     printf("\tc dir1/: change current directory to this sub-dir\n");
     printf("\tm dir1: make new sub-dir in current directory named dir1\n");
     printf("\tf dir1: make new file in current directory named dir1\n");
+    printf("\te hello.c: edit file called hello.c\n");
+    printf("\tv hello.c: view file called hello.c\n");
 }
 
 
@@ -295,6 +327,14 @@ Dir* load_dir(FILE* file, Dir* parent_dir) {
         f->name = (char*) malloc(sizeof(char) * f->len_name);
         fscanf(file, "%s", f->name);
         f->parent = d;
+
+        fscanf(file, "%d", &(f->has_contents));
+        if (f->has_contents) {
+            fscanf(file, "%d", &(f->len_contents));
+            f->contents = (char*) malloc(sizeof(char) * f->len_contents);
+            fscanf(file, "%s", f->contents);
+        }
+
         d->files[i] = f;
     }
 
@@ -322,6 +362,12 @@ void save_dir(Dir* d, FILE* file) {
     for (int i = 0; i < d->num_files; i++) {
         fprintf(file, "%d\n", d->files[i]->len_name);
         fprintf(file, "%s\n", d->files[i]->name);
+        fprintf(file, "%d\n", d->files[i]->has_contents);
+        if (d->files[i]->has_contents) {
+            fprintf(file, "%d\n", d->files[i]->len_contents);
+            fprintf(file, "%s\n", d->files[i]->contents);
+
+        }
     }
 
     for (int i = 0; i < d->num_dirs; i++) {
@@ -337,4 +383,44 @@ void local_save(Dir* td, char* file_name) {
     FILE* f = fopen(file_name, "w");
     save_dir(td, f);
     fclose(f);
+}
+
+
+// working with files
+void view_contents(Dir* curr_dir, char* file_name) {
+    for (int i = 0; i < curr_dir->num_files; i++) {
+        if (!strcmp(file_name, curr_dir->files[i]->name)) {
+            printf("%s\n", curr_dir->files[i]->contents);
+            return;
+        }
+    }
+    printf("INVALIDE FILE NAME\n");
+}
+
+void edit_file(File* f) {
+    char* file_contents = (char*) malloc(MAX_FILE_SIZE * sizeof(char));
+    
+    if (f->has_contents) {
+        strcpy(file_contents, f->contents);
+    }
+    else {
+        f->has_contents = 1;
+    }
+
+    strcpy(file_contents, "hello world!");
+
+
+    f->contents = (char*) malloc(MAX_FILE_SIZE * sizeof(char));
+    strncpy(f->contents, file_contents, MAX_FILE_SIZE - 1);
+    f->contents[MAX_FILE_SIZE - 1] = '\0';
+}
+
+void edit_contents(Dir* curr_dir, char* file_name) {
+    for (int i = 0; i < curr_dir->num_files; i++) {
+        if (!strcmp(file_name, curr_dir->files[i]->name)) {
+            edit_file(curr_dir->files[i]);
+            return;
+        }
+    }
+    printf("INVALIDE FILE NAME\n");
 }
