@@ -1,5 +1,8 @@
 - [x] Load dir from csv, append to csv
 - [x] stdin fucntionality for CLI
-- [ ] implement h (help) command
+- [x] implement h (help) command
+- [ ] remember to fetch from GITHUB!!!
 - [ ] Allow files, not only dirs
+- [ ]       implement load and save with files
+- [ ]       print full tree + files
 - [ ] Add encryption

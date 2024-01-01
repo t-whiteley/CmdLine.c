@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 
 #define MAX_FILE_SIZE 1024
@@ -9,6 +10,7 @@
 
 
 typedef struct File {
+    int len_name;
     char* name;
     char* contents;
     struct Dir* parent;
@@ -29,15 +31,30 @@ typedef struct Dir {
 // terminal commands
 Dir* mk_drive();
 Dir* mk_dir(Dir* parent_dir, char* dir_name);
+void mk_file(Dir* parent_dir, char* file_name);
 Dir* change_dir(Dir* curr_dir, char* expr);
 void print_tree(Dir* d, int lvl);
 void print_path(Dir* curr_d);
 void print_dir(Dir* curr_d);
 
+// helper functions
+void trim_whitespace(char* s);
+void help();
+
 // saving and loading commands
 Dir* load_save(char* file_name);
 void local_save(Dir* td, char* file_name);
 
+
+void help() {
+    printf("MANUAL:\n");
+    printf("\tp: print entire tree of directories\n");
+    printf("\tl: list subdirectories in a directory\n");
+    printf("\te: exit the terminal\n");
+    printf("\tc dir1/: change current directory to this sub-dir\n");
+    printf("\tm dir1: make new sub-dir in current directory named dir1\n");
+    printf("\tf dir1: make new file in current directory named dir1\n");
+}
 
 
 int main() {
@@ -52,7 +69,7 @@ int main() {
     char expr[MAX_LINE_SIZE];
     int loop = 1;
 
-    printf("[IMPLEMENTED CMDS: {p, l, e, c}]\n");
+    printf("[Type 'h' for help]\n");
     while (loop) {
         print_path(curr_dir);
         switch (c = getc(stdin)) {
@@ -66,10 +83,26 @@ int main() {
                 print_dir(curr_dir);
                 break;
 
+            // MAKE DIR
+            case 'm':
+                fgets(expr, MAX_LINE_SIZE, stdin);
+                trim_whitespace(expr);
+                mk_dir(curr_dir, expr);
+                local_save(tdrive, SAVE_NAME);
+                break;
+
             // CHANGE DIR
             case 'c':
                 fgets(expr, MAX_LINE_SIZE, stdin);
+                trim_whitespace(expr);
                 curr_dir = change_dir(curr_dir, expr);
+                break;
+
+            // MAKE FILE
+            case 'f':
+                fgets(expr, MAX_LINE_SIZE, stdin);
+                trim_whitespace(expr);
+                mk_file(curr_dir, expr);
                 break;
             
             // EXIT PROGRAM
@@ -77,13 +110,17 @@ int main() {
                 loop = 0;
                 break;
             
+            case 'h':
+                help();
+                break;
+        
             default:
-                printf("INVALID CMD");
+                printf("INVALID CMD\n");
                 break;
         }
 
-        // checks if it isnt a cmd that clears line anyways
-        if (c != 'c') {
+        // checks if it isnt a cmd that clears line anyways before clearing
+        if (c != 'c' && c != 'm' && c != 'f') {
             while ((getchar()) != '\n');
         }
     }
@@ -93,7 +130,7 @@ int main() {
 
 
 // terminal commands
-Dir* mkdrive() {
+Dir* mk_drive() {
     char name[] = "tdrive";
 
     Dir* td = (Dir*) malloc(sizeof(Dir));
@@ -109,7 +146,7 @@ Dir* mkdrive() {
     return td;
 }
 
-Dir* mkdir(Dir* parent_dir, char* dir_name) {
+Dir* mk_dir(Dir* parent_dir, char* dir_name) {
     Dir* d = (Dir*) malloc(sizeof(Dir));
     d->len_name = strlen(dir_name) + 2;
     d->name = (char*) malloc(d->len_name * sizeof(char));
@@ -128,11 +165,19 @@ Dir* mkdir(Dir* parent_dir, char* dir_name) {
     return d;
 }
 
+void mk_file(Dir* parent_dir, char* file_name) {
+    File* f = (File*) malloc(sizeof(File));
+    f->len_name = strlen(file_name) + 1;
+    f->name = (char*) malloc(f->len_name * sizeof(char));
+    strcpy(f->name, file_name);
+    f->parent = parent_dir;
+    
+    parent_dir->files = (File**) realloc(parent_dir->files, sizeof(File*) * parent_dir->num_files);
+    parent_dir->files[parent_dir->num_files] = f;
+    parent_dir->num_files++;
+}
+
 Dir* change_dir(Dir* curr_dir, char* expr) {
-    for (int i = 0; i < strlen(expr) - 1; i++) {
-        expr[i] = expr[i + 1];
-    }
-    expr[strlen(expr) - 2] = '\0';
 
     if (!(strcmp(expr, ".."))) {
         return curr_dir->parent;
@@ -194,6 +239,31 @@ void print_dir(Dir* curr_d) {
         printf("   ↳");
         printf("%s\n", curr_d->dirs[i]->name);
     }
+    for (int j = 0; j < curr_d->num_files; j++) {
+        printf("   →");
+        printf("%s\n", curr_d->files[j]->name);
+    }
+}
+
+
+// helper functions
+void trim_whitespace(char* s) {
+    int start = 0;
+    while (isspace(s[start])) {
+        start++;
+    }
+
+    int end = strlen(s) - 1;
+    while (end > start && isspace(s[end])) {
+        end--;
+    }
+
+    int length = end - start + 1;
+    if (start > 0) {
+        memmove(s, s + start, length);
+    }
+
+    s[length] = '\0';
 }
 
 
@@ -232,6 +302,10 @@ void save_dir(Dir* d, FILE* file) {
     for (int i = 0; i < d->num_dirs; i++) {
         save_dir(d->dirs[i], file);
     }
+    // for (int i = 0; i < d->num_files; i++) {
+    //     fprintf(file, "%d\n", d->len_name);
+    //     fprintf(file, "%s\n", d->name);
+    // }
 }
 
 void local_save(Dir* td, char* file_name) {
