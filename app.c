@@ -35,7 +35,7 @@ Dir* mk_dir(Dir* parent_dir, char* dir_name);
 void mk_file(Dir* parent_dir, char* file_name);
 Dir* change_dir(Dir* curr_dir, char* expr);
 void print_tree(Dir* d, int lvl);
-void print_path(Dir* curr_d);
+char* print_path(Dir* curr_d);
 void print_dir(Dir* curr_d);
 
 // helper functions
@@ -76,7 +76,7 @@ int main() {
 
     printf("[Type 'h' for help]\n");
     while (loop) {
-        print_path(curr_dir);
+        printf("%s", print_path(curr_dir));
         switch (c = getc(stdin)) {
             // TREE OF FULL DIR
             case 'p':
@@ -116,6 +116,7 @@ int main() {
                 fgets(expr, MAX_LINE_SIZE, stdin);
                 trim_whitespace(expr);
                 edit_contents(curr_dir, expr);
+                local_save(tdrive, SAVE_NAME);
                 break;
             
             // VIEW FILE
@@ -237,7 +238,7 @@ void print_tree(Dir* d, int lvl) {
     }
 }
 
-void print_path(Dir* curr_d) {
+char* print_path(Dir* curr_d) {
     int i = 1;
     char** name_list = (char**)malloc(sizeof(char*) * i);
     name_list[0] = strdup(curr_d->name);
@@ -249,19 +250,20 @@ void print_path(Dir* curr_d) {
         i++;
     }
 
-    char path[MAX_PATH_SIZE] = "";
+    // char path[MAX_PATH_SIZE] = "";
+    char* path = (char*) malloc(sizeof(char) * MAX_PATH_SIZE);
     for (int j = i - 1; j >= 0; j--) {
         strcat(path, name_list[j]);
     }
-
     strcat(path, " :: ");
-    printf("%s", path);
 
     // Free the allocated memory
     for (int k = 0; k < i; k++) {
         free(name_list[k]);
     }
     free(name_list);
+
+    return path;
 }
 
 void print_dir(Dir* curr_d) {
@@ -399,20 +401,27 @@ void view_contents(Dir* curr_dir, char* file_name) {
 
 void edit_file(File* f) {
     char* file_contents = (char*) malloc(MAX_FILE_SIZE * sizeof(char));
-    
+
     if (f->has_contents) {
-        strcpy(file_contents, f->contents);
+        strncpy(file_contents, f->contents, MAX_FILE_SIZE - 1);
+        file_contents[MAX_FILE_SIZE - 1] = '\0';
+    } else {
+        file_contents[0] = '\0';
     }
-    else {
-        f->has_contents = 1;
+
+    printf("Editing: %s\n%s", f->name, file_contents);
+    view_contents(f->parent, f->name);
+    fgets(file_contents, MAX_FILE_SIZE, stdin);
+
+    if (f->contents != NULL) {
+        free(f->contents);  // Free previous contents if they exist
     }
 
-    strcpy(file_contents, "hello world!");
+    trim_whitespace(file_contents);
+    f->contents = (char*) malloc(strlen(file_contents) + 1);
+    strcpy(f->contents, file_contents);
 
-
-    f->contents = (char*) malloc(MAX_FILE_SIZE * sizeof(char));
-    strncpy(f->contents, file_contents, MAX_FILE_SIZE - 1);
-    f->contents[MAX_FILE_SIZE - 1] = '\0';
+    free(file_contents);  // Free temporary buffer
 }
 
 void edit_contents(Dir* curr_dir, char* file_name) {
@@ -422,5 +431,5 @@ void edit_contents(Dir* curr_dir, char* file_name) {
             return;
         }
     }
-    printf("INVALIDE FILE NAME\n");
+    printf("INVALID FILE NAME\n");
 }

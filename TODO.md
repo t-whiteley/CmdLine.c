@@ -6,7 +6,7 @@ General functionality
 Allow files, not only dirs
 - [x]       implement load and save with files
 - [x]       print full tree + files
-- [ ]       writing content to file functionality - finish edit_file function
+- [x]       writing content to file functionality - editing and viewing
 
 Extra functionality
 - [ ] Add encryption
