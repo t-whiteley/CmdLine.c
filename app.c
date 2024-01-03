@@ -37,6 +37,7 @@ Dir* change_dir(Dir* curr_dir, char* expr);
 void print_tree(Dir* d, int lvl);
 char* print_path(Dir* curr_d);
 void print_dir(Dir* curr_d);
+void delete(Dir* curr_dir, char* expr);
 
 // helper functions
 void trim_whitespace(char* s);
@@ -51,28 +52,26 @@ void view_contents(Dir* curr_dir, char* file_name);
 void edit_file(File* f);
 void edit_contents(Dir* curr_dir, char* file_name);
 
+// encryption
+void encrypt(char* unsafe);
+void decrypt(char* safe);
+
 
 int main() {
     // STARTING WITH NO SAVE
     // Dir* tdrive = mk_drive();
-    // Dir* s1 = mk_dir(tdrive, "sub1");
-    // Dir* s2 = mk_dir(tdrive, "sub2");
-    // Dir* s3 = mk_dir(tdrive, "sub3");
-    // Dir* s4 = mk_dir(s1, "sub4");
-    // Dir* s5 = mk_dir(s1, "sub5");
-    // mk_file(s2, "hello.txt");
+    // mk_file(s1, "hello.txt");
     // local_save(tdrive, SAVE_NAME);
     // Dir* curr_dir = tdrive;
 
+    // STARTING WITH SAVE
     Dir* tdrive = load_save(SAVE_NAME);
     Dir* curr_dir = tdrive;
 
 
-    // loop related variables
     char c;
     char expr[MAX_LINE_SIZE];
     int loop = 1;
-
 
     printf("[Type 'h' for help]\n");
     while (loop) {
@@ -126,6 +125,14 @@ int main() {
                 view_contents(curr_dir, expr);
                 break;
             
+            // DELETE FILE OR DIR
+            case 'r':
+                fgets(expr, MAX_LINE_SIZE, stdin);
+                trim_whitespace(expr);
+                delete(curr_dir, expr);
+                local_save(tdrive, SAVE_NAME);
+                break;
+            
             // EXIT PROGRAM
             case 'b':
                 loop = 0;
@@ -141,7 +148,7 @@ int main() {
         }
 
         // checks if it isnt a cmd that clears line anyways before clearing
-        if (c != 'c' && c != 'm' && c != 'f' && c != '\n' && c != 'e' && c != 'v') {
+        if (c != 'c' && c != 'm' && c != 'f' && c != '\n' && c != 'e' && c != 'v' && c != 'r') {
             while ((getchar()) != '\n');
         }
     }
@@ -227,8 +234,8 @@ void print_tree(Dir* d, int lvl) {
             printf("   ");
         }
         printf("→");
-        printf("%d, ", d->files[j]->has_contents);
-        printf("%s\n", d->files[j]->name);
+        printf("%s", d->files[j]->name);
+        printf(" (%d)\n", d->files[j]->has_contents);
     }
 
     if (!(d->num_dirs)) return;
@@ -277,6 +284,37 @@ void print_dir(Dir* curr_d) {
     }
 }
 
+void del_file(File* f) {
+    free(f->name);
+    free(f->contents);
+    f->parent->num_files--;
+    free(f);
+}
+
+void del_dir(Dir* d) {
+    free(d->name);
+    free(d->dirs);
+    free(d->files);
+    d->parent->num_dirs--;
+    free(d);
+}
+
+void delete(Dir* curr_dir, char* expr) {
+    for (int i = 0; i < curr_dir->num_dirs; i++) {
+        if (!strcmp(expr, curr_dir->dirs[i]->name)) {
+            del_dir(curr_dir->dirs[i]);
+            return;
+        }
+    }
+    for (int i = 0; i < curr_dir->num_files; i++) {
+        if (!strcmp(expr, curr_dir->files[i]->name)) {
+            del_file(curr_dir->files[i]);
+            return;
+        }
+    }
+    printf("INVALID FILE NAME\n");
+}
+
 
 // helper functions
 void trim_whitespace(char* s) {
@@ -308,6 +346,7 @@ void help() {
     printf("\tf dir1: make new file in current directory named dir1\n");
     printf("\te hello.c: edit file called hello.c\n");
     printf("\tv hello.c: view file called hello.c\n");
+    printf("\tr hello.c: remove file/dir called hello.c\n");
 }
 
 
@@ -422,6 +461,8 @@ void edit_file(File* f) {
     strcpy(f->contents, file_contents);
 
     free(file_contents);  // Free temporary buffer
+
+    f->has_contents = 1;
 }
 
 void edit_contents(Dir* curr_dir, char* file_name) {
@@ -433,3 +474,9 @@ void edit_contents(Dir* curr_dir, char* file_name) {
     }
     printf("INVALID FILE NAME\n");
 }
+
+
+// encryption
+void encrypt(char* unsafe) {}
+
+void decrypt(char* safe) {}
